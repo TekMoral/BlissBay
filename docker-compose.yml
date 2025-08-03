@@ -1,0 +1,145 @@
+services:
+  mongo1:
+    image: mongo:6.0
+    container_name: mongo1_test
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27027:27017"
+    volumes:
+      - mongo1_data:/data/db
+    networks:
+      - mongo-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  mongo2:
+    image: mongo:6.0
+    container_name: mongo2_test
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27028:27017"
+    volumes:
+      - mongo2_data:/data/db
+    networks:
+      - mongo-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  mongo3:
+    image: mongo:6.0
+    container_name: mongo3_test
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27029:27017"
+    volumes:
+      - mongo3_data:/data/db
+    networks:
+      - mongo-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  init-replica:
+    image: mongo:6.0
+    container_name: init-replica_test
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    networks:
+      - mongo-network
+    restart: "no"
+    entrypoint: >
+      bash -c "
+        echo 'Waiting for MongoDB instances to be healthy...'
+        until mongosh --host mongo1:27017 --eval 'db.runCommand({ ping: 1 })' && \
+              mongosh --host mongo2:27017 --eval 'db.runCommand({ ping: 1 })' && \
+              mongosh --host mongo3:27017 --eval 'db.runCommand({ ping: 1 })'; do
+          echo 'MongoDB nodes not ready, retrying...'
+          sleep 5
+        done
+        echo 'All MongoDB nodes are ready. Initializing replica set...'
+        mongosh --host mongo1:27017 --eval '
+          rs.initiate({
+            _id: \"rs0\",
+            members: [
+              { _id: 0, host: \"mongo1:27017\" },
+              { _id: 1, host: \"mongo2:27017\" },
+              { _id: 2, host: \"mongo3:27017\" }
+            ]
+          })
+        '
+        echo 'Replica set initialized!'
+      "
+
+  # Add Redis service for notification queue
+  redis:
+    image: redis:alpine
+    container_name: bliss_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mongo-network
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./BlissBay
+    container_name: bliss_backend
+    depends_on:
+      - init-replica
+      - redis
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./BlissBay:/app:delegated
+      - backend_node_modules:/app/node_modules  # Use volume for node_modules
+    environment:
+      - NODE_ENV=development
+      - MONGODB_URI=mongodb://mongo1:27017,mongo2:27017,mongo3:27017/blissbay?replicaSet=rs0
+      - REDIS_ENABLED=true  # Enable Redis
+      - REDIS_HOST=redis    # Point to Redis container
+      - REDIS_PORT=6379
+    networks:
+      - mongo-network
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./blissbay-frontend
+      dockerfile: Dockerfile
+    container_name: bliss_frontend
+    ports:
+      - "5176:5175"
+    volumes:
+      - ./blissbay-frontend:/app:delegated
+      - frontend_node_modules:/app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    networks:
+      - mongo-network
+    command: npm run dev
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+  frontend_node_modules:
+  backend_node_modules:  # Added volume for backend node_modules
+  redis_data:            # Added volume for Redis data
+
+networks:
+  mongo-network:
+    driver: bridge
