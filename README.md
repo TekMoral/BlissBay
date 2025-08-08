@@ -301,7 +301,7 @@ This project is licensed under the ISC License.
 
 ## 👨💻 Author
 
-**Adewale Gabriel** - [@GabiDev2025](https://github.com/GabiDev2025)
+**Adewale Gabriel** - [@TekMoral2025](https://github.com/TekMoral)
 
 ## 🆘 Support
 
@@ -309,7 +309,6 @@ For support and questions, please open an issue in the repository or contact the
 
 ## 🔄 Version History
 
-- **v2.0.0** - Current version with full-stack implementation
-- **v1.0.0** - Initial release
+- **v1.0.0** - Current version with full-stack implementation
 
 ---
