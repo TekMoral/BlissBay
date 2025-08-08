@@ -4,7 +4,7 @@ import Order  from '../models/orderSchema.js';
 import { sendPaymentConfirmation, sendPaymentFailureNotification } from '../services/emailService.js';
 import addPaymentProcessingJob from '../services/paymentQueue.js';
 import Stripe from 'stripe';
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY );
+const stripe = process.env.STRIPE_SECRET_KEY ? Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 const createResponse = (success, message, data = null) => ({
   success,
@@ -18,6 +18,11 @@ export async function processPayment(req, res) {
 
   try {
     const { orderId, paymentMethodId } = req.body;
+
+    // Check if Stripe is configured
+    if (!stripe) {
+      return res.status(500).json({ message: 'Payment processing not configured' });
+    }
 
     // Find the order to process
     const order = await Order.findOne({ _id: orderId }).session(session);
