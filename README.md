@@ -1,6 +1,8 @@
 # BlissBay E-commerce Platform
 
-A full-stack e-commerce platform dedicated to offering a wide range of trendy fashion items from clothing to accessories, providing customers with a seamless shopping experience.
+
+A full-stack e-commerce platform designed to deliver a seamless shopping experience across a wide range of products — from fashion and accessories to electronics, home essentials, and more. Built for versatility, speed, and user satisfaction.
+
 
 ## 🚀 Features
 
